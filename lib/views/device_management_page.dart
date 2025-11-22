@@ -267,14 +267,28 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                 final isOnline = status.toLowerCase() == "online";
 
                 return ListTile(
-                  leading: IconButton(
-                    icon: Icon(
-                      device.isStarred
-                          ? Icons.star
-                          : Icons.star_border_outlined,
-                      color: device.isStarred ? Colors.orange : Colors.grey,
-                    ),
-                    onPressed: () => _toggleStar(index),
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,   // 👈 prevents overflow
+                    children: [
+                      IconButton(
+                        padding: EdgeInsets.zero,     // 👈 reduces width usage
+                        constraints: BoxConstraints(),// 👈 removes default large constraints
+                        icon: Icon(
+                          device.isStarred ? Icons.star : Icons.star_border_outlined,
+                          color: device.isStarred ? Colors.orange : Colors.grey,
+                        ),
+                        onPressed: () => _toggleStar(index),
+                      ),
+
+                      const SizedBox(width: 4),
+
+                      Image.asset(
+                        "assets/device-icon.png",
+                        width: 25,   // 👈 slightly smaller avoids overflow
+                        height: 25,
+                        fit: BoxFit.contain,
+                      ),
+                    ],
                   ),
                   title: Text(device.name),
                   subtitle: Text("Code: ${device.code}"),
