@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:developer' as developer;
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -29,8 +28,7 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   List<String> _allCategories = [];
   final List<String> _selectedCategories = [];
-  DateTime? _fromDate;
-  DateTime? _toDate;
+  DateTime? _date;
   bool _loading = true;
   bool _downloading = false; // ✅ Added for download loading
   String? _error;
@@ -173,7 +171,7 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  Future<void> _pickDate(BuildContext context, bool isFrom) async {
+  Future<void> _pickDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -184,27 +182,7 @@ class _ReportScreenState extends State<ReportScreen> {
     if (picked != null) {
       if (!mounted) return;
       setState(() {
-        if (isFrom) {
-          if (_toDate != null && picked.isAfter(_toDate!)) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("From Date cannot be after To Date."),
-              ),
-            );
-            return;
-          }
-          _fromDate = picked;
-        } else {
-          if (_fromDate != null && picked.isBefore(_fromDate!)) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("To Date cannot be before From Date."),
-              ),
-            );
-            return;
-          }
-          _toDate = picked;
-        }
+        _date = picked;
       });
     }
   }
@@ -326,44 +304,20 @@ class _ReportScreenState extends State<ReportScreen> {
                           },
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _pickDate(context, true),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: "From",
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              _fromDate != null
-                                  ? "${_fromDate!.month}/${_fromDate!.day}/${_fromDate!.year}"
-                                  : "mm/dd/yyyy",
-                              style: const TextStyle(color: Colors.black87),
-                            ),
-                          ),
-                        ),
+                  InkWell(
+                    onTap: () => _pickDate(context),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: "Date",
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _pickDate(context, false),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: "To",
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              _toDate != null
-                                  ? "${_toDate!.month}/${_toDate!.day}/${_toDate!.year}"
-                                  : "mm/dd/yyyy",
-                              style: const TextStyle(color: Colors.black87),
-                            ),
-                          ),
-                        ),
+                      child: Text(
+                        _date != null
+                            ? "${_date!.month}/${_date!.day}/${_date!.year}"
+                            : "mm/dd/yyyy",
+                        style: const TextStyle(color: Colors.black87),
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   SizedBox(
@@ -377,32 +331,18 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                       ),
                       onPressed: () async {
-                        if (_selectedCategories.isEmpty ||
-                            _fromDate == null ||
-                            _toDate == null) {
+                        if (_selectedCategories.isEmpty || _date == null) {
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content:
-                                    Text("Please select categories and dates.")),
+                                    Text("Please select categories and date.")),
                           );
                           return;
                         }
 
-                        if (_toDate!.isBefore(_fromDate!)) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text("To Date cannot be before From Date.")),
-                          );
-                          return;
-                        }
-
-                        String from =
-                            "${_fromDate!.year}-${_fromDate!.month.toString().padLeft(2, '0')}-${_fromDate!.day.toString().padLeft(2, '0')}";
-                        String to =
-                            "${_toDate!.year}-${_toDate!.month.toString().padLeft(2, '0')}-${_toDate!.day.toString().padLeft(2, '0')}";
+                        String dateStr =
+                            "${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}";
 
                         String categories = _selectedCategories.contains("ALL")
                             ? "all"
@@ -410,16 +350,14 @@ class _ReportScreenState extends State<ReportScreen> {
                                 .map((c) {
                                   String param =
                                       c.replaceAll(" ", "_").toLowerCase();
-                                  if (param == "max") return "max_values";
-                                  if (param == "min") return "min_values";
-                                  if (param == "power") return "power";
+                                  if (param == "accumulated_energy") return "energy";
                                   return param;
                                 })
                                 .join(",");
 
                         var arduinoCode = await getSelectedDeviceCode();
                         String url =
-                            "http://m77.29f.mytemp.website/report_all_parameters.php?arduino_code=$arduinoCode&from=$from&to=$to&categories=$categories";
+                            "https://m77.29f.mytemp.website/reports-export-to-csv.php?arduino_code=$arduinoCode&date=$dateStr&category=$categories";
                         developer.log("Url: $url");
 
                         DateTime now = DateTime.now();
@@ -427,9 +365,9 @@ class _ReportScreenState extends State<ReportScreen> {
                             "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
                         String filename = "Report-$timestamp.csv";
 
-                        setState(() => _downloading = true); // ✅ Start loading
+                        setState(() => _downloading = true);
                         File file = await _downloadFile(url, filename);
-                        setState(() => _downloading = false); // ✅ Stop loading
+                        setState(() => _downloading = false);
 
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

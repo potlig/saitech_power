@@ -258,7 +258,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             color: Colors.redAccent,
                           ),
                           Text(
-                            "No categories favorited.\nGo to All Variables and star a category.",
+                            "No categories chosen.\nGo to All Variables and star a category.",
                             textAlign: TextAlign.center,
                           ),
                         ],
